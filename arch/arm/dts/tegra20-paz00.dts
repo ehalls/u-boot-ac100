@@ -74,15 +74,15 @@
 
 	lcd_panel: panel {
 		/* PAZ00 has 1024x600 */
-		clock = <54030000>;
-		xres = <1024>;
-		yres = <600>;
-		right-margin = <160>;
-		left-margin = <24>;
+		clock = <85250000>;
+		xres = <1366>;
+		yres = <768>;
+		right-margin = <72>;
+		left-margin = <208>;
 		hsync-len = <136>;
-		upper-margin = <3>;
-		lower-margin = <61>;
-		vsync-len = <6>;
+		upper-margin = <17>;
+		lower-margin = <2>;
+		vsync-len = <10>;
 		hsync-active-high;
 		nvidia,bits-per-pixel = <16>;
 		nvidia,pwm = <&pwm 0 0>;
