@@ -1,5 +1,6 @@
 /dts-v1/;
 
+#include <dt-bindings/input/input.h>
 #include "tegra20.dtsi"
 
 / {
@@ -11,7 +12,13 @@
 	};
 
 	aliases {
-		usb0 = "/usb@c5008000";
+                i2c0 = "/i2c@7000d000";
+                i2c1 = "/i2c@7000c000";
+                i2c2 = "/i2c@7000c400";
+                i2c3 = "/i2c@7000c500";
+                usb0 = "/usb@c5008000";
+                usb1 = "/usb@c5000000";
+                usb2 = "/usb@c5004000";
 		sdhci0 = "/sdhci@c8000600";
 		sdhci1 = "/sdhci@c8000000";
 	};
@@ -26,38 +33,58 @@
 			status = "okay";
 			rgb {
 				status = "okay";
-				nvidia,panel = <&lcd_panel>;
+                                nvidia,ddc-i2c-bus = <&i2c1>; // edid
+				nvidia,panel = <&lcd_panel>; // fallback on edid failure
 			};
 		};
+
+                /* ONLY A SINGLE CONTROLLER IS SUPPORTED IN /mach-tegra20/display.c */
+/*
+                hdmi {
+			status = "okay";
+                        vdd-supply = <&hdmi_vdd_reg>;
+                        pll-supply = <&hdmi_pll_reg>;
+
+                        nvidia,ddc-i2c-bus = <&i2c2>;
+                        nvidia,hpd-gpio = <&gpio TEGRA_GPIO(N, 7)
+                                GPIO_ACTIVE_HIGH>;
+                };
+*/
+
 	};
 
 	serial@70006000 {
 		clock-frequency = < 216000000 >;
 	};
 
-	i2c@7000c000 {
-		status = "disabled";
-	};
+	/* CAM_I2C_SDA: EC; Ene KB926 */ 
+        i2c@7000c500 {
+                status = "okay";
+                clock-frequency = <1000000>;
+        };
 
-	i2c@7000c400 {
-		status = "disabled";
-	};
 
-	i2c@7000c500 {
-		status = "disabled";
-	};
+	/*
+         * GEN1_I2C_SDA: Audic Codec, G sensor, TPM, Light Senor, LCD edid 
+         */
+        i2c1: i2c@7000c000 {
+                status = "okay";
+                clock-frequency = <400000>;
+        };
 
-	i2c@7000d000 {
-		status = "disabled";
-	};
+        /* DDC_SDA_3P3: hdmi EDID */
+        i2c2: i2c@7000c400 {
+                status = "okay";
+                clock-frequency = <100000>;
+        };
 
-	usb@c5000000 {
-		status = "disabled";
-	};
-
-	usb@c5004000 {
-		status = "disabled";
-	};
+        /*
+         * PWR_I2C_SCL: power I2C to PMIC and temperature sensor
+         */
+        i2c@7000d000 {
+                status = "okay";
+                clock-frequency = <100000>;
+        };
 
 	sdhci@c8000000 {
 		status = "okay";
@@ -72,9 +99,34 @@
 		bus-width = <8>;
 	};
 
+        regulators {
+                compatible = "simple-bus";
+                #address-cells = <1>;
+                #size-cells = <0>;
+
+                hdmi_vdd_reg: regulator@0 {
+                        compatible = "regulator-fixed";
+                        reg = <0>;
+                        regulator-name = "avdd_hdmi";
+                        regulator-min-microvolt = <3300000>;
+                        regulator-max-microvolt = <3300000>;
+                        regulator-always-on;
+                };
+
+                hdmi_pll_reg: regulator@1 {
+                        compatible = "regulator-fixed";
+                        reg = <1>;
+                        regulator-name = "avdd_hdmi_pll";
+                        regulator-min-microvolt = <1800000>;
+                        regulator-max-microvolt = <1800000>;
+                        regulator-always-on;
+                };
+
+	};
+
+        /* Backup panel settings*/
 	lcd_panel: panel {
-		/* PAZ00 has 1024x600 */
-		clock = <85250000>;
+		/*clock = <85250000>;
 		xres = <1366>;
 		yres = <768>;
 		right-margin = <72>;
@@ -82,7 +134,7 @@
 		hsync-len = <136>;
 		upper-margin = <17>;
 		lower-margin = <2>;
-		vsync-len = <10>;
+		vsync-len = <10>;*/
 		hsync-active-high;
 		nvidia,bits-per-pixel = <16>;
 		nvidia,pwm = <&pwm 0 0>;

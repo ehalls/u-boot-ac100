@@ -461,7 +461,7 @@
 		compatible = "nvidia,tegra20-ehci", "usb-ehci";
 		reg = <0xc5004000 0x4000>;
 		interrupts = < 53 >;
-		phy_type = "ulpi";
+		phy_type = "utmi";
 		clocks = <&tegra_car 58>;	/* PERIPH_ID_USB2 */
 	};
 

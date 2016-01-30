@@ -13,6 +13,7 @@
 #include <asm/arch-tegra/dc.h>
 #include <asm/arch-tegra/clk_rst.h>
 #include <asm/arch-tegra/timer.h>
+#include <asm/arch-tegra/tegra_i2c.h>
 
 static struct fdt_disp_config config;
 
@@ -263,7 +264,6 @@ static int tegra_decode_panel(const void *blob, int node,
 	if (!config->pixel_clock || config->width == -1 ||
 			config->height == -1) {
 		debug("%s: Pixel parameters missing\n", __func__);
-		return -FDT_ERR_NOTFOUND;
 	}
 
 	back = fdtdec_get_int(blob, node, "left-margin", -1);
@@ -271,7 +271,6 @@ static int tegra_decode_panel(const void *blob, int node,
 	ref = fdtdec_get_int(blob, node, "hsync-len", -1);
 	if ((back | front | ref) == -1) {
 		debug("%s: Horizontal parameters missing\n", __func__);
-		return -FDT_ERR_NOTFOUND;
 	}
 
 	/* Use a ref-to-sync of 1 always, and take this from the front porch */
@@ -287,9 +286,8 @@ static int tegra_decode_panel(const void *blob, int node,
 	ref = fdtdec_get_int(blob, node, "vsync-len", -1);
 	if ((back | front | ref) == -1) {
 		debug("%s: Vertical parameters missing\n", __func__);
-		return -FDT_ERR_NOTFOUND;
 	}
-
+        
 	config->vert_timing[FDT_LCD_TIMING_REF_TO_SYNC] = 1;
 	config->vert_timing[FDT_LCD_TIMING_SYNC_WIDTH] = ref;
 	config->vert_timing[FDT_LCD_TIMING_BACK_PORCH] = back;
@@ -297,6 +295,116 @@ static int tegra_decode_panel(const void *blob, int node,
 		config->vert_timing[FDT_LCD_TIMING_REF_TO_SYNC];
 	debug_timing("vert", config->vert_timing);
 
+	return 0;
+}
+
+/**
+ * Decode panel information from the edid
+ *
+ */
+static int tegra_decode_edid(struct display_timing *timing, struct fdt_disp_config *config)
+{
+	int front, back, ref;
+        
+	config->width = timing->hactive.typ; 
+	config->height = timing->vactive.typ;
+	config->pixel_clock = timing->pixelclock.typ;
+	if (!config->pixel_clock || config->width == -1 ||
+			config->height == -1) {
+		debug("%s: Pixel parameters missing\n", __func__);
+		return -1;
+	}
+
+	back = timing->hback_porch.typ;
+	front = timing->hfront_porch.typ;
+	ref = timing->hsync_len.typ;
+	if ((back | front | ref) == -1) {
+		debug("%s: Horizontal parameters missing\n", __func__);
+		return -1;
+	}
+        
+	config->horiz_timing[FDT_LCD_TIMING_SYNC_WIDTH] = ref;
+	config->horiz_timing[FDT_LCD_TIMING_BACK_PORCH] = back;
+	config->horiz_timing[FDT_LCD_TIMING_FRONT_PORCH] = front - 
+                config->horiz_timing[FDT_LCD_TIMING_REF_TO_SYNC];
+	debug_timing("horiz", config->horiz_timing);
+
+	back = timing->vback_porch.typ;
+	front = timing->vfront_porch.typ;
+	ref = timing->vsync_len.typ;
+	if ((back | front | ref) == -1) {
+		debug("%s: Vertical parameters missing\n", __func__);
+		return -1;
+	}
+
+	config->vert_timing[FDT_LCD_TIMING_SYNC_WIDTH] = ref;
+	config->vert_timing[FDT_LCD_TIMING_BACK_PORCH] = back;
+	config->vert_timing[FDT_LCD_TIMING_FRONT_PORCH] = front -
+		config->vert_timing[FDT_LCD_TIMING_REF_TO_SYNC];
+	debug_timing("vert", config->vert_timing);
+
+	return 0;
+}
+
+static int tegra_display_decode_use_panel(const void *blob, int rgb,
+				       struct fdt_disp_config *config){
+        config->panel_node = fdtdec_lookup_phandle(blob, rgb, "nvidia,panel");
+	if (config->panel_node < 0) {
+		debug("%s: Cannot find panel information\n", __func__);
+		return -1;
+	}
+    
+	if (tegra_decode_panel(blob, config->panel_node, config)) {
+		debug("%s: Failed to decode panel information\n", __func__);
+		return -1;
+	}
+
+	return 0;
+}
+
+static int tegra_display_decode_using_edid_or_panel(const void *blob, int rgb,
+				       struct fdt_disp_config *config){
+
+    int bpp, bit,
+        ret = -1, 
+        i2c_edid_bus_offset = -1, 
+        panel_bpp = -1; 
+    struct display_timing timing;
+    
+        //Init panel config
+    	if (tegra_display_decode_use_panel(blob,rgb, config)) {
+		printf("%s: No panel configuration defined\n", __func__);
+		return -1;
+	}
+        
+        i2c_edid_bus_offset = fdtdec_lookup_phandle(blob, rgb, "nvidia,ddc-i2c-bus");
+	if (i2c_edid_bus_offset < 0) {
+		printf("%s: Cannot find EDID information, panel fallback\n", __func__);
+		return -1;
+	}
+        
+        //Update panel config using the edid
+        tegra_i2c_get_edid(i2c_edid_bus_offset, &timing, &panel_bpp);
+        tegra_decode_edid(&timing, config);
+      
+
+        bpp = fdtdec_get_int(blob, config->panel_node, "nvidia,bits-per-pixel",
+			     panel_bpp);
+	bit = ffs(bpp) - 1;
+	if (bpp == (1 << bit))
+		config->log2_bpp = bit;
+	else
+		config->log2_bpp = bpp;
+        //config->log2_bpp = 4;
+	if (bpp == -1) {
+		debug("%s: Pixel bpp parameters missing\n", __func__);
+		return -FDT_ERR_NOTFOUND;
+	}
+        
+	config->bpp = bpp;
+
+	config->valid = 1;	/* we have a valid configuration */
+        
 	return 0;
 }
 
@@ -311,7 +419,6 @@ static int tegra_display_decode_config(const void *blob,
 				       struct fdt_disp_config *config)
 {
 	int node, rgb;
-	int bpp, bit;
 
 	/* TODO: Support multiple controllers */
 	node = fdtdec_next_compatible(blob, 0, COMPAT_NVIDIA_TEGRA20_DC);
@@ -327,34 +434,8 @@ static int tegra_display_decode_config(const void *blob,
 	}
 
 	rgb = fdt_subnode_offset(blob, node, "rgb");
-
-	config->panel_node = fdtdec_lookup_phandle(blob, rgb, "nvidia,panel");
-	if (config->panel_node < 0) {
-		debug("%s: Cannot find panel information\n", __func__);
-		return -1;
-	}
-
-	if (tegra_decode_panel(blob, config->panel_node, config)) {
-		debug("%s: Failed to decode panel information\n", __func__);
-		return -1;
-	}
-
-	bpp = fdtdec_get_int(blob, config->panel_node, "nvidia,bits-per-pixel",
-			     -1);
-	bit = ffs(bpp) - 1;
-	if (bpp == (1 << bit))
-		config->log2_bpp = bit;
-	else
-		config->log2_bpp = bpp;
-	if (bpp == -1) {
-		debug("%s: Pixel bpp parameters missing\n", __func__);
-		return -FDT_ERR_NOTFOUND;
-	}
-	config->bpp = bpp;
-
-	config->valid = 1;	/* we have a valid configuration */
-
-	return 0;
+        
+	return tegra_display_decode_using_edid_or_panel(blob, rgb, config);
 }
 
 int tegra_display_probe(const void *blob, void *default_lcd_base)
@@ -362,8 +443,10 @@ int tegra_display_probe(const void *blob, void *default_lcd_base)
 	struct disp_ctl_win window;
 	struct dc_ctlr *dc;
 
-	if (tegra_display_decode_config(blob, &config))
+	if (tegra_display_decode_config(blob, &config)){
+                debug("%s: No display config decoded failed address\n", __func__);
 		return -1;
+        }
 
 	config.frame_buffer = (u32)default_lcd_base;
 
@@ -385,8 +468,11 @@ int tegra_display_probe(const void *blob, void *default_lcd_base)
 	if (config.pixel_clock)
 		update_display_mode(&dc->disp, &config);
 
-	if (setup_window(&window, &config))
-		return -1;
+	if (setup_window(&window, &config)) {
+            debug("%s: Window setup failed \n", __func__);
+            return -1;
+        }
+		
 
 	update_window(dc, &window);
 

@@ -153,4 +153,6 @@ struct i2c_ctlr {
  */
 int tegra_i2c_get_dvc_bus(struct udevice **busp);
 
+int tegra_i2c_get_edid(int offset, struct display_timing *timing, int *panel_bits_per_colourp);
+
 #endif	/* _TEGRA_I2C_H_ */

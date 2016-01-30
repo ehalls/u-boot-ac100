@@ -10,7 +10,10 @@
 #include <dm.h>
 #include <errno.h>
 #include <fdtdec.h>
+#include <dm/device.h>
 #include <i2c.h>
+#include <edid.h>
+#include <display.h>
 #include <asm/io.h>
 #include <asm/arch/clock.h>
 #include <asm/arch/funcmux.h>
@@ -241,7 +244,7 @@ static int send_recv_packets(struct i2c_bus *i2c_bus,
 				local = *wptr;
 			}
 			writel(local, &control->tx_fifo);
-			debug("pkt data sent (0x%x)\n", local);
+			debug("pkt data sent (0x%x) from (0x%x) with flag (0x%x)\n", local, trans->address, trans->flags);
 			if (!wait_for_tx_fifo_empty(control)) {
 				error = -1;
 				goto exit;
@@ -262,7 +265,7 @@ static int send_recv_packets(struct i2c_bus *i2c_bus,
 				memcpy(dptr, &local, sizeof(u32));
 			else
 				*wptr = local;
-			debug("pkt data received (0x%x)\n", local);
+			debug("pkt data received (0x%x) from (0x%x) with flag (0x%x)\n", local, trans->address, trans->flags);
 		}
 		words--;
 		dptr += sizeof(u32);
@@ -368,7 +371,7 @@ static int tegra_i2c_probe(struct udevice *dev)
 		i2c_bus->control = &i2c_bus->regs->control;
 	}
 	i2c_init_controller(i2c_bus);
-	debug("%s: controller bus %d at %p, periph_id %d, speed %d: ",
+	debug("%s: controller bus %d at %p, periph_id %d, speed %d: \n",
 	      is_dvc ? "dvc" : "i2c", dev->seq, i2c_bus->regs,
 	      i2c_bus->periph_id, i2c_bus->speed);
 
@@ -403,7 +406,7 @@ static int i2c_read_data(struct i2c_bus *i2c_bus, uchar chip, uchar *buffer,
 {
 	int rc;
 
-	debug("inside i2c_read_data():\n");
+        debug("inside i2c_read_data(): chip=0x%x, len=0x%x\n", chip, len);
 	/* Shift 7-bit address over for lower-level i2c functions */
 	rc = tegra_i2c_read_data(i2c_bus, chip << 1, buffer, len);
 	if (rc) {
@@ -476,6 +479,24 @@ int tegra_i2c_get_dvc_bus(struct udevice **busp)
 	}
 
 	return -ENODEV;
+}
+
+int tegra_i2c_get_edid(int offset, struct display_timing *timing, int *panel_bits_per_colourp)
+{
+    uint tegra_edid_i2c_address = 0x50;
+    struct udevice *bus; // i2c bus device
+    struct udevice *dev; // chip devices no i2c bus
+    struct edid1_info edid;
+    int ret; // return value for testing
+    
+    //Get the target bus
+    device_get_global_by_of_offset(offset, &bus);
+     ret = i2c_get_chip(bus, tegra_edid_i2c_address, 1, &dev);
+     if (!ret)
+	dm_i2c_read(dev, 0, (uchar *)&edid, sizeof(edid));
+    //edid_print_info(&edid); // debug code
+     
+    return edid_get_timing( (uchar *)&edid, sizeof(edid), timing, panel_bits_per_colourp);
 }
 
 static const struct dm_i2c_ops tegra_i2c_ops = {

@@ -39,8 +39,8 @@ struct fdt_disp_config *disp_config;	/* Display controller config */
 
 enum {
 	/* Maximum LCD size we support */
-	LCD_MAX_WIDTH		= 1366,
-	LCD_MAX_HEIGHT		= 768,
+	LCD_MAX_WIDTH		= 1920,
+	LCD_MAX_HEIGHT		= 1080,
 	LCD_MAX_LOG2_BPP	= 4,		/* 2^4 = 16 bpp */
 };
 
@@ -178,14 +178,14 @@ static int handle_stage(const void *blob)
 	case STAGE_START:
 		/* Initialize the Tegra display controller */
 		if (tegra_display_probe(gd->fdt_blob, (void *)gd->fb_base)) {
-			printf("%s: Failed to probe display driver\n",
+			debug("%s: Failed to probe display driver\n",
 			__func__);
 			return -1;
 		}
 
 		/* get panel details */
 		if (fdt_decode_lcd(blob, &config)) {
-			printf("No valid LCD information in device tree\n");
+			debug("No valid LCD information in device tree\n");
 			return -1;
 		}
 
@@ -278,7 +278,7 @@ void lcd_enable(void)
 	 * will not look right, and U-Boot may crash.
 	 */
 	if (disp_config->log2_bpp != LCD_BPP) {
-		printf("%s: Error: LCD depth configured in FDT (%d = %dbpp)"
+		debug("%s: Error: LCD depth configured in FDT (%d = %dbpp)"
 			" must match setting of LCD_BPP (%d)\n", __func__,
 		       disp_config->log2_bpp, disp_config->bpp, LCD_BPP);
 	}
