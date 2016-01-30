@@ -368,11 +368,13 @@ static int tegra_display_decode_using_edid_or_panel(const void *blob, int rgb,
     int bpp, bit,
         ret = -1, 
         i2c_edid_bus_offset = -1, 
-        panel_bpp = -1; 
+        panel_bpp = -1;
+    
     struct display_timing timing;
     
         //Init panel config
-    	if (tegra_display_decode_use_panel(blob,rgb, config)) {
+        ret = tegra_display_decode_use_panel(blob,rgb, config);
+    	if (ret < 0) {
 		printf("%s: No panel configuration defined\n", __func__);
 		return -1;
 	}
@@ -384,10 +386,11 @@ static int tegra_display_decode_using_edid_or_panel(const void *blob, int rgb,
 	}
         
         //Update panel config using the edid
-        tegra_i2c_get_edid(i2c_edid_bus_offset, &timing, &panel_bpp);
-        tegra_decode_edid(&timing, config);
-      
-
+        ret = tegra_i2c_get_edid(i2c_edid_bus_offset, &timing, &panel_bpp);
+        if(ret > -1){
+            tegra_decode_edid(&timing, config);
+        }
+     
         bpp = fdtdec_get_int(blob, config->panel_node, "nvidia,bits-per-pixel",
 			     panel_bpp);
 	bit = ffs(bpp) - 1;
