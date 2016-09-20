@@ -22,15 +22,6 @@
 
 #define CONFIG_MACH_TYPE		MACH_TYPE_PAZ00
 
-/* Fastboot and USB OTG */
-#define CONFIG_USB_FUNCTION_FASTBOOT
-#define CONFIG_CMD_FASTBOOT
-#define CONFIG_FASTBOOT_FLASH
-#define CONFIG_FASTBOOT_FLASH_MMC_DEV	0
-#define CONFIG_FASTBOOT_BUF_SIZE	(PHYS_SDRAM_1_SIZE - SZ_1M)
-#define CONFIG_FASTBOOT_BUF_ADDR	CONFIG_SYS_INIT_SP_ADDR
-#define CONFIG_FASTBOOT_GPT_NAME "gpt"
-
 /* Partitioning Support */
 #define CONFIG_CMD_GPT
 #define CONFIG_CMD_UUID
@@ -73,71 +64,37 @@
 #define CONFIG_SYS_MMC_ENV_DEV 0
 #define CONFIG_SYS_MMC_ENV_PART 2
 
-/* USB networking support */
-#define CONFIG_USB_HOST_ETHER
-#define CONFIG_USB_ETHER_ASIX
-#define CONFIG_USB_ETHER_RNDIS
-
-/* General networking support */
-#define CONFIG_CMD_DHCP
-
 /* LCD support */
 #define CONFIG_LCD
+#define CONFIG_LCD_BMP_RLE8
+#define CONFIG_LCD_CONSOLE_ANSI
 #define CONFIG_PWM_TEGRA
 #define CONFIG_VIDEO_TEGRA
-#define LCD_BPP				LCD_COLOR16
+#define LCD_BPP LCD_COLOR16
 #define CONFIG_SYS_WHITE_ON_BLACK
-#define CONFIG_CONSOLE_SCROLL_LINES	5
+#define CONFIG_VIDEO_SW_CURSOR
+
+/* Boot menu options */
+#define CONFIG_CMDLINE_EDITING		/* add command line history */
+#define CONFIG_AUTO_COMPLETE		/* add autocompletion support */
+
+#define CONFIG_CMD_BOOTMENU		/* ANSI terminal Boot Menu */
+#define CONFIG_CMD_CLEAR		/* ANSI terminal clear screen command */
+
+#define CONFIG_MENU
 
 /*
  * Miscellaneous configurable options
  */
 
 #define BOARD_EXTRA_ENV_SETTINGS \
-	"baudrate=115200\0" \
-	"bootdelay=3\0" \
-	"autoload=no\0" \
-	"bootscr=boot.scr\0" \
-	"fdtfile=paz00.dtb\0" \
-	"kernel=zImage-paz00\0" \
-	"ramdisk=ramdisk-paz00.img\0" \
-	"console=ttyO3\0" \
-	"ramdisksize=16384\0" \
-	"mmcdev=0\0" \
-	"mmcroot=/dev/mmcblk1p2\0" \
-	"mmcargs=setenv bootargs console=${console} " \
-		"root=${mmcroot} rw rootwait\0" \
-	"ramroot=/dev/ram0\0" \
-	"ramargs=setenv bootargs console=${console} " \
-		"root=${ramroot} ramdisk_size=${ramdisksize} rw\0" \
-	"mmcloadkernel=load mmc ${mmcdev} ${loadaddr} ${kernel}\0" \
-	"mmcloadfdt=load mmc ${mmcdev} ${fdtaddr} ${fdtfile}\0" \
-	"mmcloadramdisk=load mmc ${mmcdev} ${rdaddr} ${ramdisk}\0" \
-	"mmcloadbootscript=load mmc ${mmcdev} ${loadaddr} ${bootsrc}\0" \
-	"mmcbootscript=echo Running bootscript from mmc${mmcdev}...; " \
-			"source ${loadaddr}\0" \
-	"mmcbootlinux=echo Booting from mmc${mmcdev} ...; " \
-			"bootz ${loadaddr} ${rdaddr} ${fdtaddr}\0" \
-	"mmcboot=if mmc dev ${mmcdev} && mmc rescan; then " \
-			"if run mmcloadbootscript; " \
-				"then run mmcbootscript; " \
-			"fi; " \
-			"if run mmcloadkernel; then " \
-				"if run mmcloadfdt; then " \
-					"if run mmcloadramdisk; then " \
-						"run ramargs; " \
-						"run mmcbootlinux; " \
-					"fi; " \
-					"run mmcargs; " \
-					"setenv rdaddr - ; " \
-					"run mmcbootlinux; " \
-				"fi; " \
-			"fi; " \
-		"fi;\0"
+    "bootmenu_0=Nand (ext2)=ext2load mmc 0:1 0x1000000 /boot/zImage; ext2load mmc 0:1 0x2200000 /boot/initrd; bootz 0x1000000 0x2200000\0" \
+	"bootmenu_1=SD (ext2)=ext2load mmc 1:1 0x1000000 /boot/zImage; ext2load mmc 1:1 0x2200000 /boot/initrd; bootz 0x1000000 0x2200000\0" \
+	"bootmenu_2=USBfat (fat)=fatload usb 0:1 0x1000000 /boot/zImage; fatload usb 0:1 0x2200000 /boot/initrd; bootz 0x1000000 0x2200000\0" \
+	"bootmenu_3=USBext (ext2)=ext2load usb 0:1 0x1000000 /boot/zImage; ext2load usb 0:1 0x2200000 /boot/initrd; bootz 0x1000000 0x2200000\0" \
+    "bootmenu_4=NandFallback (ext2)=ext2load mmc 0:1 0x1000000 /boot/zBackup; bootz 0x1000000 -;\0" 
 
-#define CONFIG_BOOTCOMMAND \
-	"run mmcboot || setenv mmcdev 1; setenv mmcroot /dev/mmcblk0p2; run mmcboot;"
-
+#define CONFIG_BOOTCOMMAND "bootmenu"
 
 #include "tegra-common-post.h"
 #include "tegra-common-usb-gadget.h"

@@ -109,6 +109,7 @@ int lcd_get_screen_columns(void);
  * @return background color value
  */
 int lcd_getbgcolor(void);
+void lcd_setbgcolor(int color);
 
 /**
  * Get the foreground color of the LCD
@@ -116,6 +117,7 @@ int lcd_getbgcolor(void);
  * @return foreground color value
  */
 int lcd_getfgcolor(void);
+void lcd_setfgcolor(int color);
 
 /**
  * Set the position of the text cursor

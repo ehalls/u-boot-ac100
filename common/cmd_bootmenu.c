@@ -182,6 +182,13 @@ static void bootmenu_loop(struct bootmenu_data *menu,
 		break;
 	}
 
+	/* Custom ANSI 'A' - key up was pressed */
+	if (c == 0x6 || c == 0x10)
+		*key = KEY_UP;
+	/* Custom ANSI 'B' - key down was pressed */
+	if (c == 0x2 || c == 0xe)
+		*key = KEY_DOWN;
+
 	/* enter key was pressed */
 	if (c == '\r')
 		*key = KEY_SELECT;

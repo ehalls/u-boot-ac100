@@ -44,8 +44,8 @@ DECLARE_GLOBAL_DATA_PTR;
 
 static int lcd_init(void *lcdbase);
 static void lcd_logo(void);
-static void lcd_setfgcolor(int color);
-static void lcd_setbgcolor(int color);
+void lcd_setfgcolor(int color);
+void lcd_setbgcolor(int color);
 
 static int lcd_color_fg;
 static int lcd_color_bg;
@@ -299,7 +299,7 @@ ulong lcd_setmem(ulong addr)
 	return addr;
 }
 
-static void lcd_setfgcolor(int color)
+void lcd_setfgcolor(int color)
 {
 	lcd_color_fg = color;
 }
@@ -309,7 +309,7 @@ int lcd_getfgcolor(void)
 	return lcd_color_fg;
 }
 
-static void lcd_setbgcolor(int color)
+void lcd_setbgcolor(int color)
 {
 	lcd_color_bg = color;
 }
